@@ -63,6 +63,7 @@ PUB start
 Pub SerialStart(BaudRate)
 
   Serial.Start(31, 30, 0, BaudRate)
+  waitcnt(80_000_000 + cnt)
 
 
 Pub ServoStart
