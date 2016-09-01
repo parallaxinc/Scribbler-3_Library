@@ -142,12 +142,15 @@ Pub MotorSetDistance(left_distance, right_distance, max_speed)
 
 Pub MotorSetRotate(degrees, radius, max_speed)
 
+  if radius => 0
+   -degrees
+
   degrees := -1_080 #> degrees <# 1_080 
   radius := -4_400 #> radius <# 4_400 
   max_speed := 1 #> max_speed * 15 /100 <# 15 
 
   Scribbler.set_speed(max_speed)
-  Scribbler.arc_deg_now(-degrees, radius)
+  Scribbler.arc_deg_now(degrees, -radius)
   Scribbler.wait_stop
 
 
