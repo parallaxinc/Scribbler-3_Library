@@ -19,18 +19,30 @@ CON
   OFF             = $00
   COLOR_000000    = OFF
 
+''    Control Character Constants
+''─────────────────────────────────────
+  CS = 16  ''CS: Clear Screen
+  PC =  2  ''PC: Position Cursor in x,y
+  PX = 14  ''PX: Position cursor in X
+  PY = 15  ''PY: Position cursor in Y
+  NL = 13  ''NL: New Line
+  LF = 10  ''LF: Line Feed
+  BS =  8  ''BS: BackSpace
+
 '---[Global Variables]---------------------------------------------------------
 
 VAR
 
-  long  pLeftMotor, pRightMotor, pMoveTime, FMStack[50], stack[30]
-  byte  RunningCog, obs[3], WasObs[3], WasLine[3], WasLight[4], WasStalled, WasLeftVelocity, WasRightVelocity
+  long  pLeftMotor, pRightMotor, pMoveTime, FMStack[50], stack[30], seed
+  byte  RunningCog, obs[3], WasObs[3], WasLine[3], WasLight[4], WasRandom, WasStalled, WasButton, WasLeftVelocity, WasRightVelocity
 
 '---[Object Declaration]-------------------------------------------------------
 
 OBJ
 
   Scribbler     : "scribbler"
+  Serial        : "FullDuplexSerial"
+  ServoDriver   : "Servo32v7"
 
 '---[Start of Program]---------------------------------------------------------
 
@@ -46,6 +58,16 @@ PUB start
   cognew(FaultMonitor, @FMStack)
   cognew(Obstacler, @stack)
   waitcnt(cnt + 10_000_000) 
+
+
+Pub SerialStart(BaudRate)
+
+  Serial.Start(31, 30, 0, BaudRate)
+
+
+Pub ServoStart
+
+  ServoDriver.Start
 
 
 Pri Obstacler | side, ObstacleThld
@@ -313,27 +335,7 @@ Pub SimpleLine(Condition, Location, Color) | Position
       WasLine[RIGHT] := Scribbler.line_sensor(RIGHT, -1)
   if Condition == IS OR Condition == WAS
     result := TRUE
-{
-  if Color == BLACK
-    if ||(WasLine[LEFT] - WasLine[RIGHT]) < 30          ' Low difference, not on an edge
-      if WasLine[LEFT] + WasLine[RIGHT] < 60            ' Average reading is dark
-        Position := CENTER
-    elseif WasLine[LEFT] > WasLine[RIGHT]
-      Position := LEFT
-    elseif WasLine[RIGHT] > WasLine[LEFT]
-      Position := RIGHT
-  else
-    if ||(WasLine[LEFT] - WasLine[RIGHT]) < 30          ' Low difference, not on an edge
-      ifnot WasLine[LEFT] + WasLine[RIGHT] < 60            ' Average reading is dark
-        Position := CENTER
-    elseif WasLine[LEFT] > WasLine[RIGHT]
-      Position := RIGHT
-    elseif WasLine[RIGHT] > WasLine[LEFT]
-      Position := LEFT
 
-  if Position AND (Location == Position OR Location == DETECTED)
-    return
-}
   if ||(WasLine[LEFT] - WasLine[RIGHT]) < 30          ' Low difference, not on an edge
     if WasLine[LEFT] + WasLine[RIGHT] < 60            ' Average reading is dark
       if Color == BLACK AND (Location == CENTER OR Location == DETECTED)
@@ -413,15 +415,59 @@ Pub SimpleButton(Condition)
 
   case Condition
     IS:
-      WasStalled := Scribbler.button_press
-      return WasStalled
+      WasButton := Scribbler.button_press
+      return WasButton
     IS_NOT:
-      WasStalled := Scribbler.button_press
-      return not WasStalled
+      WasButton := Scribbler.button_press
+      return not WasButton
     WAS:
-      return WasStalled
+      return WasButton
     WAS_NOT:
-      return not WasStalled
+      return not WasButton
+
+
+Pub SimpleRandom(Condition)
+
+  case Condition
+    IS:
+      WasRandom := BooleanRandom
+      return WasRandom
+    IS_NOT:
+      WasRandom := BooleanRandom
+      return not WasRandom
+    WAS:
+      return WasRandom
+    WAS_NOT:
+      return not WasRandom
+
+
+Pub BooleanRandom
+
+  if Seed? & 1
+    return TRUE
+
+
+Pub RandomRange(A, B) | High, Low, Range
+
+  ' Ser High and Low to their repective numbers
+  if A < B
+    Low := A
+    High := B
+  elseif A == B ' return if the range is zero
+    return A
+  else{if A > B}
+    Low := B
+    High := A
+
+  ' Calculate the range
+  Range := High - Low
+  ' and return 0 if the range is too large to calculate
+  if Range < 0
+    return 0
+  elseif range == posx
+    return Low + (Seed? & posx)
+    
+  return Low + (Seed? & posx) / (posx / (Range + 1))
 
 
 Pub ButtonCount
@@ -438,6 +484,84 @@ Pub ResetButtonCount
 
   return Scribbler.reset_button_count
 
+
 Pub RunWithoutResult(input)
 
   return input
+
+
+Pub SerialStr(StringPointer)
+
+  Serial.Str(StringPointer)
+
+
+Pub SerialDec(Number)
+
+  Serial.Dec(Number)
+
+
+Pub SerialChar(Character)
+
+  Serial.Tx(Character)
+
+
+Pub SerialPositionX(Position)
+
+  Serial.Tx(PX)
+  Serial.Tx(Position)
+
+
+Pub SerialPositionY(Position)
+
+  Serial.Tx(PY)
+  Serial.Tx(Position)
+
+
+Pub SerialCharIn
+
+  return Serial.RxCheck
+
+
+Pub Ping(Pin) | MaxLoops, StartCnt, EndCnt
+
+  ifnot 0 =< Pin and Pin =< 5
+    return 0
+  outa[Pin]~~
+  dira[Pin]~~
+  waitcnt(clkfreq / 200_000 + cnt)
+  outa[Pin]~
+  dira[Pin]~
+
+  MaxLoops := 80
+  repeat while --MaxLoops and not ina[Pin]
+  StartCnt := cnt
+  ifnot MaxLoops
+    return 0
+  
+  MaxLoops := 2_000
+  repeat while --MaxLoops and ina[Pin]
+  EndCnt := cnt
+  ifnot MaxLoops
+    return 0
+
+  waitcnt(16000 + cnt)
+
+  result := EndCnt - StartCnt
+  
+  if result < 9200 or result > 1480000
+    return 0
+
+
+Pub Servo(Pin, Angle)
+
+  ifnot 0 =< Pin and Pin =< 5
+    return 0
+
+  Angle := (0 #> Angle <# 180) * 2_000 / 180 + 500
+  ServoDriver.Set(Pin, Angle)
+
+
+Pub ServoStop(Pin)
+
+  ServoDriver.Set(Pin, 0)
+
