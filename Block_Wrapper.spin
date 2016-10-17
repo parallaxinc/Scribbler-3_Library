@@ -43,7 +43,6 @@ OBJ
   Scribbler         : "scribbler"
   Serial            : "FullDuplexSerial"
   ServoDriver       : "Servo32v7"
-  Scribbler_Default : "scribbler_default"
 
 '---[Start of Program]---------------------------------------------------------
 
@@ -569,11 +568,4 @@ Pub Servo(Pin, Angle)
 Pub ServoStop(Pin)
 
   ServoDriver.Set(Pin, 0)
-
-
-' Load the default product demo into the S3
-Pub RestoreS3Demo()
-
-  Scribber_Default.Start
-
 
