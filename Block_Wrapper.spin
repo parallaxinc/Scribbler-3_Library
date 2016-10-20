@@ -116,20 +116,25 @@ Pub MotorSet(LeftVelocity, RightVelocity, move_time)
 
   LeftVelocity := -255 #> LeftVelocity * 255 / 100 <# 255
   RightVelocity := -255 #> RightVelocity * 255 / 100 <# 255
-  if move_time 
-    move_time #>= 1
+  if move_time > 0
+    move_time <#= 65_535
+  else
+    move_time~
 
-  Scribbler.wheels_now(LeftVelocity, RightVelocity, move_time)
-  WasLeftVelocity := LeftVelocity
-  WasRightVelocity := RightVelocity
+  if move_time or WasLeftVelocity <> LeftVelocity or WasRightVelocity <> RightVelocity
+  
+      Scribbler.wheels_now(LeftVelocity, RightVelocity, move_time)
+      WasLeftVelocity := LeftVelocity
+      WasRightVelocity := RightVelocity
+    
+      if move_time
+        WasLeftVelocity~
+        WasRightVelocity~
+        Scribbler.wait_stop
+    
+      WasLeftVelocity := LeftVelocity
+      WasRightVelocity := RightVelocity
 
-  if move_time
-    WasLeftVelocity~
-    WasRightVelocity~
-    Scribbler.wait_stop
-
-  WasLeftVelocity := LeftVelocity
-  WasRightVelocity := RightVelocity
 
 Pub MotorSetDistance(left_distance, right_distance, max_speed)
 
