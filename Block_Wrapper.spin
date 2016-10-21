@@ -189,9 +189,14 @@ Pub SimpleDrive(Direction, Speed) | LeftVelocity, RightVelocity
       LeftVelocity := Speed / 4
       RightVelocity := Speed
 
-  Scribbler.wheels_now(LeftVelocity, RightVelocity, 0)
-  WasLeftVelocity := LeftVelocity
-  WasRightVelocity := RightVelocity
+  if WasLeftVelocity <> LeftVelocity or WasRightVelocity <> RightVelocity
+  
+      Scribbler.wheels_now(LeftVelocity, RightVelocity, 0)
+      WasLeftVelocity := LeftVelocity
+      WasRightVelocity := RightVelocity
+    
+      WasLeftVelocity := LeftVelocity
+      WasRightVelocity := RightVelocity
 
 
 Pub SimpleSpin(Angle, Speed, Resume)
