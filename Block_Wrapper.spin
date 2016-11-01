@@ -165,6 +165,13 @@ Pub MotorsMoving
   return Scribbler.moving
 
 
+Pub MoveXY(X, Y, MaxSpeed)
+
+  Scribbler.set_speed(1 #> MaxSpeed * 15 /100 <# 15)
+  Scribbler.Move_By(-$3F_FF_FF_FF #> X <# $3F_FF_FF_FF, -$3F_FF_FF_FF #> Y <# $3F_FF_FF_FF)
+  Scribbler.wait_stop
+
+
 Pub SimpleDrive(Direction, Speed) | LeftVelocity, RightVelocity
 
   case Direction
@@ -199,10 +206,10 @@ Pub SimpleDrive(Direction, Speed) | LeftVelocity, RightVelocity
       WasRightVelocity := RightVelocity
 
 
-Pub SimpleSpin(Angle, Speed, Resume)
+Pub SimpleSpin(Angle, MaxSpeed, Resume)
 
-  Scribbler.set_speed(Speed)
-  Scribbler.arc_deg_now(-Angle, 0)
+  Scribbler.set_speed(1 #> MaxSpeed <# 15)
+  Scribbler.arc_deg_now(-1_080 #> -Angle <# 1_080, 0)
   Scribbler.wait_stop
 
   if Resume
@@ -578,4 +585,23 @@ Pub Servo(Pin, Angle)
 Pub ServoStop(Pin)
 
   ServoDriver.Set(Pin, 0)
+
+
+Pub ADC(Pin)
+
+  case Pin
+    0:
+      return Scribbler.get_results(Scribbler#ADC_P6)
+    1:
+      return Scribbler.get_results(Scribbler#ADC_P7)
+
+
+Pub DigitalInput(Pin)
+
+  ifnot 0 =< Pin and Pin =< 5
+    return 0
+
+  ServoDriver.Set(Pin, 0)
+  dira[Pin]~
+  return ina[Pin]
 
