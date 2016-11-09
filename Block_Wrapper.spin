@@ -12,6 +12,7 @@ CON
   #0, IS, IS_NOT, WAS, WAS_NOT
   #0, BLACK, WHITE
   #0, STRAIGHT, SLIGHT_RIGHT, GENTLE_RIGHT, SHARP_RIGHT, SLIGHT_LEFT, GENTLE_LEFT, SHARP_LEFT
+  #0, HIGH, LOW, INPUT, OUTPUT, TOGGLE_STATE, TOGGLE_DIRECTION
 
   COLOR_ff0000    = Scribbler#RED
   COLOR_ff7f00    = $5A
@@ -43,7 +44,6 @@ OBJ
   Scribbler         : "scribbler"
   Serial            : "FullDuplexSerial"
   ServoDriver       : "Servo32v7"
-  Scribbler_Default : "scribbler_default"
 
 '---[Start of Program]---------------------------------------------------------
 
@@ -117,20 +117,25 @@ Pub MotorSet(LeftVelocity, RightVelocity, move_time)
 
   LeftVelocity := -255 #> LeftVelocity * 255 / 100 <# 255
   RightVelocity := -255 #> RightVelocity * 255 / 100 <# 255
-  if move_time 
-    move_time #>= 1
+  if move_time > 0
+    move_time <#= 65_535
+  else
+    move_time~
 
-  Scribbler.wheels_now(LeftVelocity, RightVelocity, move_time)
-  WasLeftVelocity := LeftVelocity
-  WasRightVelocity := RightVelocity
+  if move_time or WasLeftVelocity <> LeftVelocity or WasRightVelocity <> RightVelocity
+  
+      Scribbler.wheels_now(LeftVelocity, RightVelocity, move_time)
+      WasLeftVelocity := LeftVelocity
+      WasRightVelocity := RightVelocity
+    
+      if move_time
+        WasLeftVelocity~
+        WasRightVelocity~
+        Scribbler.wait_stop
+    
+      WasLeftVelocity := LeftVelocity
+      WasRightVelocity := RightVelocity
 
-  if move_time
-    WasLeftVelocity~
-    WasRightVelocity~
-    Scribbler.wait_stop
-
-  WasLeftVelocity := LeftVelocity
-  WasRightVelocity := RightVelocity
 
 Pub MotorSetDistance(left_distance, right_distance, max_speed)
 
@@ -161,6 +166,13 @@ Pub MotorsMoving
   return Scribbler.moving
 
 
+Pub MoveXY(X, Y, MaxSpeed)
+
+  Scribbler.set_speed(1 #> MaxSpeed * 15 /100 <# 15)
+  Scribbler.Move_By(-$3F_FF_FF_FF #> X <# $3F_FF_FF_FF, -$3F_FF_FF_FF #> Y <# $3F_FF_FF_FF)
+  Scribbler.wait_stop
+
+
 Pub SimpleDrive(Direction, Speed) | LeftVelocity, RightVelocity
 
   case Direction
@@ -185,15 +197,20 @@ Pub SimpleDrive(Direction, Speed) | LeftVelocity, RightVelocity
       LeftVelocity := Speed / 4
       RightVelocity := Speed
 
-  Scribbler.wheels_now(LeftVelocity, RightVelocity, 0)
-  WasLeftVelocity := LeftVelocity
-  WasRightVelocity := RightVelocity
+  if WasLeftVelocity <> LeftVelocity or WasRightVelocity <> RightVelocity
+  
+      Scribbler.wheels_now(LeftVelocity, RightVelocity, 0)
+      WasLeftVelocity := LeftVelocity
+      WasRightVelocity := RightVelocity
+    
+      WasLeftVelocity := LeftVelocity
+      WasRightVelocity := RightVelocity
 
 
-Pub SimpleSpin(Angle, Speed, Resume)
+Pub SimpleSpin(Angle, MaxSpeed, Resume)
 
-  Scribbler.set_speed(Speed)
-  Scribbler.arc_deg_now(-Angle, 0)
+  Scribbler.set_speed(1 #> MaxSpeed <# 15)
+  Scribbler.arc_deg_now(-1_080 #> -Angle <# 1_080, 0)
   Scribbler.wait_stop
 
   if Resume
@@ -240,14 +257,12 @@ Pub SimplePlay(Frequency, Duration, Volume)
 '---[Play an Individual Pulse, Followed by a Delay.]---------------------------
 {
 Pub PlayPulse(on_duration, nil, off_duration) | on_freq
-
   on_duration := on_duration * 2 + 1380
   on_freq := 1_000_000 / on_duration
   on_duration := on_duration / 700 #> 1
   Scribbler.play_tone(on_duration, on_freq, 0)
   if (off_duration)
     Scribbler.play_tone(off_duration, 0, 0)
-
 '---[Read Bar Codes]-----------------------------------------------------------
 }
 Pub ReadBars | w0, w1, barcount, midwidth, t
@@ -452,27 +467,27 @@ Pub BooleanRandom
     return TRUE
 
 
-Pub RandomRange(A, B) | High, Low, Range
+Pub RandomRange(A, B) | Higher, Lower, Range
 
   ' Ser High and Low to their repective numbers
   if A < B
-    Low := A
-    High := B
+    Lower := A
+    Higher := B
   elseif A == B ' return if the range is zero
     return A
   else{if A > B}
-    Low := B
-    High := A
+    Lower := B
+    Higher := A
 
   ' Calculate the range
-  Range := High - Low
+  Range := Higher - Lower
   ' and return 0 if the range is too large to calculate
   if Range < 0
     return 0
   elseif range == posx
-    return Low + (Seed? & posx)
+    return Lower + (Seed? & posx)
     
-  return Low + (Seed? & posx) / (posx / (Range + 1))
+  return Lower + (Seed? & posx) / (posx / (Range + 1))
 
 
 Pub ButtonCount
@@ -490,9 +505,9 @@ Pub ResetButtonCount
   return Scribbler.reset_button_count
 
 
-Pub RunWithoutResult(input)
+Pub RunWithoutResult(null)
 
-  return input
+  return
 
 
 Pub SerialStr(StringPointer)
@@ -571,9 +586,46 @@ Pub ServoStop(Pin)
   ServoDriver.Set(Pin, 0)
 
 
-' Load the default product demo into the S3
-Pub RestoreS3Demo()
+Pub ADC(Pin)
 
-  Scribber_Default.Start
+  case Pin
+    0:
+      return Scribbler.get_results(Scribbler#ADC_P6)
+    1:
+      return Scribbler.get_results(Scribbler#ADC_P7)
 
+
+Pub DigitalInput(Pin)
+
+  ifnot 0 =< Pin and Pin =< 5
+    return 0
+
+  ServoDriver.Set(Pin, 0)
+  dira[Pin]~
+  return ina[Pin]
+
+
+Pub DigitalOutput(Pin, Action)
+
+  ifnot 0 =< Pin and Pin =< 5
+    return
+
+  ServoDriver.Set(Pin, 0)
+
+  case Action
+    HIGH:
+      outa[Pin]~~
+      dira[Pin]~~
+    LOW:
+      outa[Pin]~
+      dira[Pin]~~
+    INPUT:
+      dira[Pin]~
+    OUTPUT:
+      dira[Pin]~~
+    TOGGLE_STATE:
+      !outa[Pin]
+      dira[Pin]~~
+    TOGGLE_DIRECTION:
+      !dira[Pin]
 
