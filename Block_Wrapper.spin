@@ -12,6 +12,7 @@ CON
   #0, IS, IS_NOT, WAS, WAS_NOT
   #0, BLACK, WHITE
   #0, STRAIGHT, SLIGHT_RIGHT, GENTLE_RIGHT, SHARP_RIGHT, SLIGHT_LEFT, GENTLE_LEFT, SHARP_LEFT
+  #0, HIGH, LOW, INPUT, OUTPUT, TOGGLE_STATE, TOGGLE_DIRECTION
 
   COLOR_ff0000    = Scribbler#RED
   COLOR_ff7f00    = $5A
@@ -256,14 +257,12 @@ Pub SimplePlay(Frequency, Duration, Volume)
 '---[Play an Individual Pulse, Followed by a Delay.]---------------------------
 {
 Pub PlayPulse(on_duration, nil, off_duration) | on_freq
-
   on_duration := on_duration * 2 + 1380
   on_freq := 1_000_000 / on_duration
   on_duration := on_duration / 700 #> 1
   Scribbler.play_tone(on_duration, on_freq, 0)
   if (off_duration)
     Scribbler.play_tone(off_duration, 0, 0)
-
 '---[Read Bar Codes]-----------------------------------------------------------
 }
 Pub ReadBars | w0, w1, barcount, midwidth, t
@@ -468,27 +467,27 @@ Pub BooleanRandom
     return TRUE
 
 
-Pub RandomRange(A, B) | High, Low, Range
+Pub RandomRange(A, B) | Higher, Lower, Range
 
   ' Ser High and Low to their repective numbers
   if A < B
-    Low := A
-    High := B
+    Lower := A
+    Higher := B
   elseif A == B ' return if the range is zero
     return A
   else{if A > B}
-    Low := B
-    High := A
+    Lower := B
+    Higher := A
 
   ' Calculate the range
-  Range := High - Low
+  Range := Higher - Lower
   ' and return 0 if the range is too large to calculate
   if Range < 0
     return 0
   elseif range == posx
-    return Low + (Seed? & posx)
+    return Lower + (Seed? & posx)
     
-  return Low + (Seed? & posx) / (posx / (Range + 1))
+  return Lower + (Seed? & posx) / (posx / (Range + 1))
 
 
 Pub ButtonCount
@@ -506,9 +505,9 @@ Pub ResetButtonCount
   return Scribbler.reset_button_count
 
 
-Pub RunWithoutResult(input)
+Pub RunWithoutResult(null)
 
-  return input
+  return
 
 
 Pub SerialStr(StringPointer)
@@ -604,4 +603,29 @@ Pub DigitalInput(Pin)
   ServoDriver.Set(Pin, 0)
   dira[Pin]~
   return ina[Pin]
+
+
+Pub DigitalOutput(Pin, Action)
+
+  ifnot 0 =< Pin and Pin =< 5
+    return
+
+  ServoDriver.Set(Pin, 0)
+
+  case Action
+    HIGH:
+      outa[Pin]~~
+      dira[Pin]~~
+    LOW:
+      outa[Pin]~
+      dira[Pin]~~
+    INPUT:
+      dira[Pin]~
+    OUTPUT:
+      dira[Pin]~~
+    TOGGLE_STATE:
+      !outa[Pin]
+      dira[Pin]~~
+    TOGGLE_DIRECTION:
+      !dira[Pin]
 
