@@ -356,20 +356,38 @@ Pub SimpleLine(Condition, Location, Color) | Position
   if Condition == IS OR Condition == WAS
     result := TRUE
 
-  if ||(WasLine[LEFT] - WasLine[RIGHT]) < 30          ' Low difference, not on an edge
-    if WasLine[LEFT] + WasLine[RIGHT] < 60            ' Average reading is dark
+  if WasLine[LEFT] > 40
+    if WasLine[RIGHT] > 40                              'Left = Light, Right = Light
+      if Color == WHITE AND (Location == CENTER OR Location == DETECTED)
+        return
+    else                                                'Left = Light, Right = Dark
+      if Location == DETECTED OR (Location == LEFT AND Color == BLACK) OR (Location == RIGHT AND Color == WHITE)
+        return
+  else
+    if WasLine[RIGHT] > 40                              'Left = Dark, Right = Light
+      if Location == DETECTED OR (Location == LEFT AND Color == WHITE) OR (Location == RIGHT AND Color == BLACK)
+        return
+    else                                                'Left = Dark, Right = Dark
       if Color == BLACK AND (Location == CENTER OR Location == DETECTED)
         return
-    elseif Color == WHITE AND (Location == CENTER OR Location == DETECTED) ' Average reading is light
-      return
-  else                                                ' Over an edge
+
+{
+  if ||(WasLine[LEFT] - WasLine[RIGHT]) < 40            ' Low difference, not on an edge
+    if Location == CENTER OR Location == DETECTED
+      if WasLine[LEFT] + WasLine[RIGHT] < 80            ' Average reading is dark
+        if Color == BLACK 
+          return
+      elseif Color == WHITE                             ' Average reading is light
+        return
+  else                                                  ' Over an edge
     if Location == DETECTED
       return
-    elseif (WasLine[LEFT] > WasLine[RIGHT]) AND ((Location == LEFT AND Color == BLACK) OR (Location == RIGHT AND Color == WHITE)) ' Left is brighter
+    if WasLine[LEFT] > WasLine[RIGHT] 
+      if (Location == LEFT AND Color == BLACK) OR (Location == RIGHT AND Color == WHITE)                ' Left is brighter
+        return
+    elseif (Location == LEFT AND Color == WHITE) OR (Location == RIGHT AND Color == BLACK)              ' Right is brighter
       return
-    elseif (WasLine[RIGHT] > WasLine[LEFT]) AND ((Location == LEFT AND Color == WHITE) OR (Location == RIGHT AND Color == BLACK)) ' Right is brighter
-      return
-
+}
   not result
 
 
