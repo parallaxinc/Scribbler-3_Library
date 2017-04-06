@@ -357,10 +357,7 @@ Pub SimpleLine(Condition, Location, Color) | Position
     result := TRUE
 
   if ||(WasLine[LEFT] - WasLine[RIGHT]) < 30          ' Low difference, not on an edge
-    if WasLine[LEFT] + WasLine[RIGHT] < 60            ' Average reading is dark
-      if Color == BLACK AND (Location == CENTER OR Location == DETECTED)
-        return
-    elseif Color == WHITE AND (Location == CENTER OR Location == DETECTED) ' Average reading is light
+    if WasLine[LEFT] + WasLine[RIGHT] => 60 AND Color == WHITE AND (Location == CENTER OR Location == DETECTED) ' Average reading is light
       return
   else                                                ' Over an edge
     if Location == DETECTED
